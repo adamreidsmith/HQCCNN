@@ -1,0 +1,8 @@
+*
+__pycache__
+
+!.gitignore
+!CNN.py
+!HQCCNN.py
+!requirements.txt
+!README.md
