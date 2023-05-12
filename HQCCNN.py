@@ -18,11 +18,10 @@ from tqdm import tqdm
 
 torch.autograd.set_detect_anomaly(False)
 
-
 DATAFILE = "../deepsat_qnn/deepsat4/sat-4-full.mat"  # https://csc.lsu.edu/~saikat/deepsat/
 BATCH_SIZE = 125
 LR = 0.001
-EPOCHS = 50
+EPOCHS = 100
 
 seed = 0
 torch.manual_seed(seed)
