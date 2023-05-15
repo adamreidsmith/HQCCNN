@@ -1,6 +1,6 @@
 torch
 scipy
 torchquantum
-torchsummary
+torchinfo
 matplotlib
 seaborn
