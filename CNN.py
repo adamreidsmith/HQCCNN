@@ -161,10 +161,6 @@ def main():
 
     summary(cnn_model, (BATCH_SIZE, 1, 28, 28))
 
-    for p in cnn_model.parameters():
-        print(p.shape)
-    assert 0
-
     # Define the optimizer and loss function
     optimizer = Adam(cnn_model.parameters(), lr=LR)
     loss_func = CrossEntropyLoss()
