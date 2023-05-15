@@ -19,9 +19,9 @@ from tqdm import tqdm
 torch.autograd.set_detect_anomaly(False)
 
 DATAFILE = "../deepsat_qnn/deepsat4/sat-4-full.mat"  # https://csc.lsu.edu/~saikat/deepsat/
-BATCH_SIZE = 4
+BATCH_SIZE = 32
 LR = 0.001
-EPOCHS = 15
+EPOCHS = 100
 
 seed = 0
 torch.manual_seed(seed)
@@ -249,7 +249,7 @@ def test(model, dataloader, loss_func, epoch=0):
 
 
 def main():
-    train_loader, test_loader = load_data(subset_directory='data_subsets', ntrain=96, ntest=32)
+    train_loader, test_loader = load_data(subset_directory='data_subsets')
 
     hybrid_model = HybridModel(input_size=28, downsampled_size=4, quantum_kernels=2)
 
