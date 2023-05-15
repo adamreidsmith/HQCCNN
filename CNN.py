@@ -8,17 +8,17 @@ from torch import nn
 from torch.nn import AvgPool2d, Flatten, Linear, ReLU, CrossEntropyLoss, Softmax, Conv2d, MaxPool2d
 from torch.utils.data import Dataset, DataLoader
 from torch.optim import Adam
-from scipy.io import loadmat
+from torchinfo import summary
 
+from scipy.io import loadmat
 import matplotlib.pyplot as plt
 import seaborn as sns
-
 from tqdm import tqdm
 
 torch.autograd.set_detect_anomaly(False)
 
 DATAFILE = "../deepsat_qnn/deepsat4/sat-4-full.mat"  # https://csc.lsu.edu/~saikat/deepsat/
-BATCH_SIZE = 125
+BATCH_SIZE = 32
 LR = 0.001
 EPOCHS = 50
 
@@ -54,11 +54,12 @@ class CNNModel(nn.Module):
         downsampling_ks = input_size // downsampled_size
 
         self.downsampling = AvgPool2d(kernel_size=downsampling_ks, stride=downsampling_ks)
-        self.conv1 = Conv2d(in_channels=1, out_channels=2, kernel_size=2, padding=1)
+        self.conv1 = Conv2d(in_channels=1, out_channels=2, kernel_size=2, padding=1, stride=1)
         self.pool1 = MaxPool2d(kernel_size=2, stride=1)
         self.flatten = Flatten()
         self.fc1 = Linear(in_features=32, out_features=128)
-        self.fc2 = Linear(in_features=128, out_features=4)
+        self.fc2 = Linear(in_features=128, out_features=64)
+        self.fc3 = Linear(in_features=64, out_features=4)
         self.relu = ReLU()
 
     def forward(self, x):
@@ -66,7 +67,8 @@ class CNNModel(nn.Module):
         x = self.relu(self.pool1(self.conv1(x)))
         x = self.flatten(x)
         x = self.relu(self.fc1(x))
-        return self.fc2(x)  # No need to apply softmax here as it is applied by the loss function
+        x = self.relu(self.fc2(x))
+        return self.fc3(x)  # No need to apply softmax here as it is applied by the loss function
 
 
 def load_data(ntrain=9000, ntest=1000, subset_directory='', write_subset_files=True):
@@ -156,6 +158,12 @@ def main():
     train_loader, test_loader = load_data(subset_directory='data_subsets')
 
     cnn_model = CNNModel(input_size=28, downsampled_size=4)
+
+    summary(cnn_model, (BATCH_SIZE, 1, 28, 28))
+
+    for p in cnn_model.parameters():
+        print(p.shape)
+    assert 0
 
     # Define the optimizer and loss function
     optimizer = Adam(cnn_model.parameters(), lr=LR)

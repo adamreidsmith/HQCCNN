@@ -9,17 +9,17 @@ from torch.nn import AvgPool2d, Flatten, Linear, ReLU, CrossEntropyLoss, Softmax
 from torch.utils.data import Dataset, DataLoader
 from torch.optim import Adam
 import torchquantum as tq
-from scipy.io import loadmat
+from torchinfo import summary
 
+from scipy.io import loadmat
 import matplotlib.pyplot as plt
 import seaborn as sns
-
 from tqdm import tqdm
 
 torch.autograd.set_detect_anomaly(False)
 
 DATAFILE = "../deepsat_qnn/deepsat4/sat-4-full.mat"  # https://csc.lsu.edu/~saikat/deepsat/
-BATCH_SIZE = 125
+BATCH_SIZE = 32
 LR = 0.001
 EPOCHS = 100
 
@@ -68,13 +68,17 @@ class QuantumConvolution(tq.QuantumModule):
         # Instantiate the gates with trainable parameters for each kernel
         self.quantum_kernels = [self.get_quantum_conv_block_trainable_gates() for _ in range(self.n_kernels)]
 
+        for i, kernel_gates in enumerate(self.quantum_kernels):
+            for j, gate in enumerate(kernel_gates):
+                self.register_parameter(name=f'kernel{i}_gate{j}', param=gate.params)
+
         # Measure all gates to obtain expectation values of all qubits
         self.measure = tq.MeasureAll(tq.PauliZ)
 
     @staticmethod
     def get_quantum_conv_block_trainable_gates():
         # Return the trainable gates associated to the quantum convolution operation
-        # All blocks operate with the same set of parameters
+        # All blocks in the same kernel operate with the same set of parameters
         return [
             tq.RY(has_params=True, trainable=True),
             tq.RY(has_params=True, trainable=True),
@@ -118,7 +122,7 @@ class QuantumConvolution(tq.QuantumModule):
             # Here we disregard the last four qubits due to the pooling operation
             quantum_conv_results.append(self.measure(self.q_device)[:, :-4])
 
-            # Reset the states of the quantum device to |0>
+            # # Reset the states of the quantum device to |0>
             self.q_device.reset_states(bsz=self.batch_size)
 
         return torch.cat(quantum_conv_results, dim=1)
@@ -127,16 +131,23 @@ class QuantumConvolution(tq.QuantumModule):
 class HybridModel(nn.Module):
     def __init__(self, input_size=28, downsampled_size=4, quantum_kernels=2):
         super().__init__()
-        downsampling_ks = input_size // downsampled_size
 
+        # Downsample the image from [BS, 1, 28, 28] to [BS, 1, downsampled_size, downsampled_size] and flatten it
+        downsampling_ks = input_size // downsampled_size
         self.downsampling = AvgPool2d(kernel_size=downsampling_ks, stride=downsampling_ks)
         self.flatten = Flatten()
+
+        # Apply the quantum layer to the flattened tensor
         self.quantum_convolution = QuantumConvolution(
             batch_size=BATCH_SIZE, n_qubits=downsampled_size**2, n_kernels=quantum_kernels
         )
-        self.fc1 = Linear(in_features=quantum_kernels * (downsampled_size**2 - 4), out_features=128)
-        self.fc2 = Linear(in_features=128, out_features=4)
 
+        # Feed the quantum output into linear layers
+        self.fc1 = Linear(in_features=quantum_kernels * (downsampled_size**2 - 4), out_features=128)
+        self.fc2 = Linear(in_features=128, out_features=64)
+        self.fc3 = Linear(in_features=64, out_features=4)
+
+        # Activation function for linear layers
         self.relu = ReLU()
 
     def forward(self, x):
@@ -144,8 +155,8 @@ class HybridModel(nn.Module):
         x = self.flatten(x)
         x = self.quantum_convolution(x)
         x = self.relu(self.fc1(x))
-        x = self.fc2(x)
-        return x  # No need to apply softmax here as it is applied by the loss function
+        x = self.relu(self.fc2(x))
+        return self.fc3(x)  # No need to apply softmax here as it is applied by the loss function
 
 
 def load_data(ntrain=9000, ntest=1000, subset_directory='', write_subset_files=True):
@@ -235,6 +246,9 @@ def main():
     train_loader, test_loader = load_data(subset_directory='data_subsets')
 
     hybrid_model = HybridModel(input_size=28, downsampled_size=4, quantum_kernels=2)
+
+    # Summarize the model
+    summary(hybrid_model, (BATCH_SIZE, 1, 28, 28))
 
     # Define the optimizer and loss function
     optimizer = Adam(hybrid_model.parameters(), lr=LR)
