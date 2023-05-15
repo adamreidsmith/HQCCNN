@@ -19,9 +19,9 @@ from tqdm import tqdm
 torch.autograd.set_detect_anomaly(False)
 
 DATAFILE = "../deepsat_qnn/deepsat4/sat-4-full.mat"  # https://csc.lsu.edu/~saikat/deepsat/
-BATCH_SIZE = 32
+BATCH_SIZE = 4
 LR = 0.001
-EPOCHS = 100
+EPOCHS = 15
 
 seed = 0
 torch.manual_seed(seed)
@@ -50,6 +50,42 @@ class Data(Dataset):
 
 
 class QuantumConvolution(tq.QuantumModule):
+    def __init__(self, n_qubits):
+        super().__init__()
+        self.n_qubits = n_qubits
+
+        # Instantiate the gates with trainable parameters for each kernel
+        self.kernel_gates = [
+            tq.RY(has_params=True, trainable=True),
+            tq.RY(has_params=True, trainable=True),
+            tq.RY(has_params=True, trainable=True),
+            tq.RX(has_params=True, trainable=True),
+            tq.RX(has_params=True, trainable=True),
+        ]
+
+    def forward(self, qdev):
+        # Apply the quantum kernel
+        ry0, ry1, ry2, rx0, rx1 = self.kernel_gates
+
+        # Apply each quantum convolution block
+        for i in range(self.n_qubits - 4):
+            ry0(qdev, wires=i)
+            qdev.cnot(wires=[i, i + 3])
+            ry1(qdev, wires=i + 3)
+            ry2(qdev, wires=i + 1)
+            qdev.cnot(wires=[i + 1, i + 4])
+            qdev.cnot(wires=[i + 3, i + 1])
+            rx0(qdev, wires=i + 4)
+            rx1(qdev, wires=i + 1)
+
+        # Apply the pooling operations
+        for i in range(self.n_qubits - 4):
+            qdev.cnot(wires=[i + 1, i])
+            qdev.cnot(wires=[i + 3, i])
+            qdev.cnot(wires=[i + 4, i])
+
+
+class QuantumModel(tq.QuantumModule):
     def __init__(self, batch_size, n_qubits, n_kernels):
         super().__init__()
         self.n_qubits = n_qubits
@@ -61,31 +97,18 @@ class QuantumConvolution(tq.QuantumModule):
 
         # Define the encoder to encode the input values using an Ry rotation
         # Input values should be scaled to [0, pi]
-        self.encoder = tq.GeneralEncoder(
-            [{'input_idx': [i], 'func': 'ry', 'wires': [i]} for i in range(self.n_qubits)]
-        )
+        self.encode = tq.GeneralEncoder([{'input_idx': [i], 'func': 'ry', 'wires': [i]} for i in range(self.n_qubits)])
 
-        # Instantiate the gates with trainable parameters for each kernel
-        self.quantum_kernels = [self.get_quantum_conv_block_trainable_gates() for _ in range(self.n_kernels)]
+        # Define the quantum kernels
+        self.quantum_kernels = [QuantumConvolution(self.n_qubits) for _ in range(self.n_kernels)]
 
-        for i, kernel_gates in enumerate(self.quantum_kernels):
-            for j, gate in enumerate(kernel_gates):
+        # Register the kernel's parameters
+        for i, kernel in enumerate(self.quantum_kernels):
+            for j, gate in enumerate(kernel.kernel_gates):
                 self.register_parameter(name=f'kernel{i}_gate{j}', param=gate.params)
 
         # Measure all gates to obtain expectation values of all qubits
         self.measure = tq.MeasureAll(tq.PauliZ)
-
-    @staticmethod
-    def get_quantum_conv_block_trainable_gates():
-        # Return the trainable gates associated to the quantum convolution operation
-        # All blocks in the same kernel operate with the same set of parameters
-        return [
-            tq.RY(has_params=True, trainable=True),
-            tq.RY(has_params=True, trainable=True),
-            tq.RY(has_params=True, trainable=True),
-            tq.RX(has_params=True, trainable=True),
-            tq.RX(has_params=True, trainable=True),
-        ]
 
     def forward(self, x):
         # Make sure the input has the right shape
@@ -94,29 +117,12 @@ class QuantumConvolution(tq.QuantumModule):
 
         # Apply the quantum kernels
         quantum_conv_results = []
-        for kernel_gates in self.quantum_kernels:
-            # Extract the gates
-            ry0, ry1, ry2, rx0, rx1 = kernel_gates
-
+        for kernel_block in self.quantum_kernels:
             # Encode the data
-            self.encoder(self.q_device, x)
+            self.encode(self.q_device, x)
 
-            # Apply each quantum convolution block
-            for i in range(self.n_qubits - 4):
-                ry0(self.q_device, wires=i)
-                self.q_device.cnot(wires=[i, i + 3])
-                ry1(self.q_device, wires=i + 3)
-                ry2(self.q_device, wires=i + 1)
-                self.q_device.cnot(wires=[i + 1, i + 4])
-                self.q_device.cnot(wires=[i + 3, i + 1])
-                rx0(self.q_device, wires=i + 4)
-                rx1(self.q_device, wires=i + 1)
-
-            # Apply the pooling operations
-            for i in range(self.n_qubits - 4):
-                self.q_device.cnot(wires=[i + 1, i])
-                self.q_device.cnot(wires=[i + 3, i])
-                self.q_device.cnot(wires=[i + 4, i])
+            # Apply the quantum kernel block
+            kernel_block(self.q_device)
 
             # Obtain the expectation values of the qubits in the computational basis after quantum convolution
             # Here we disregard the last four qubits due to the pooling operation
@@ -138,7 +144,7 @@ class HybridModel(nn.Module):
         self.flatten = Flatten()
 
         # Apply the quantum layer to the flattened tensor
-        self.quantum_convolution = QuantumConvolution(
+        self.quantum_convolution = QuantumModel(
             batch_size=BATCH_SIZE, n_qubits=downsampled_size**2, n_kernels=quantum_kernels
         )
 
@@ -243,7 +249,7 @@ def test(model, dataloader, loss_func, epoch=0):
 
 
 def main():
-    train_loader, test_loader = load_data(subset_directory='data_subsets')
+    train_loader, test_loader = load_data(subset_directory='data_subsets', ntrain=96, ntest=32)
 
     hybrid_model = HybridModel(input_size=28, downsampled_size=4, quantum_kernels=2)
 
