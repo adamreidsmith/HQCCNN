@@ -23,10 +23,10 @@ from qiskit_machine_learning.neural_networks import EstimatorQNN
 from qiskit_machine_learning.connectors import TorchConnector
 from qiskit.opflow import PauliSumOp
 
-torch.autograd.set_detect_anomaly(False)
+# torch.autograd.set_detect_anomaly(False)
 
 DATAFILE = "../deepsat_qnn/deepsat4/sat-4-full.mat"  # https://csc.lsu.edu/~saikat/deepsat/
-BATCH_SIZE = 32
+BATCH_SIZE = 2
 LR = 0.001
 EPOCHS = 100
 
