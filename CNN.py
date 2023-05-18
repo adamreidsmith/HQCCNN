@@ -15,7 +15,6 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from tqdm import tqdm
 
-torch.autograd.set_detect_anomaly(False)
 
 DATAFILE = "../deepsat_qnn/deepsat4/sat-4-full.mat"  # https://csc.lsu.edu/~saikat/deepsat/
 BATCH_SIZE = 32

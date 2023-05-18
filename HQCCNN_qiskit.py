@@ -23,10 +23,9 @@ from qiskit_machine_learning.neural_networks import EstimatorQNN
 from qiskit_machine_learning.connectors import TorchConnector
 from qiskit.opflow import PauliSumOp
 
-# torch.autograd.set_detect_anomaly(False)
 
 DATAFILE = "../deepsat_qnn/deepsat4/sat-4-full.mat"  # https://csc.lsu.edu/~saikat/deepsat/
-BATCH_SIZE = 2
+BATCH_SIZE = 32
 LR = 0.001
 EPOCHS = 100
 
@@ -41,7 +40,7 @@ class Data(Dataset):
         # Take the channel-wise mean of the data to reduce the dimensionality
         self.x_data = self.x_data.mean(dim=1, keepdim=True)
 
-        # # Standardize the data on [0, pi]
+        # Standardize the data on [0, pi]
         mn, mx = self.x_data.min(), self.x_data.max()
         self.x_data = pi * (self.x_data - mn) / (mx - mn)
 
