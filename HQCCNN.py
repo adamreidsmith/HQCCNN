@@ -23,8 +23,8 @@ BATCH_SIZE = 32
 LR = 0.001
 EPOCHS = 100
 
-seed = 0
-torch.manual_seed(seed)
+# seed = 0
+# torch.manual_seed(seed)
 
 
 class Data(Dataset):

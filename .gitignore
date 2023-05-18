@@ -4,5 +4,6 @@ __pycache__
 !.gitignore
 !CNN.py
 !HQCCNN.py
+!HQCCNN_qiskit.py
 !requirements.txt
 !README.md
