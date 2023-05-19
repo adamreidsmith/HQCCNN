@@ -250,9 +250,9 @@ def test(model, dataloader, loss_func, epoch=0):
 def main():
     train_loader, test_loader = load_data(subset_directory='data_subsets')
 
-    downsampled_size = 3
-    plot_samples(train_loader, downsampled_size)
-    hybrid_model = HybridModel(input_size=28, downsampled_size=downsampled_size, quantum_kernels=2)
+    downsampled_size = 4
+    # plot_samples(train_loader, downsampled_size)
+    hybrid_model = HybridModel(input_size=28, downsampled_size=downsampled_size, quantum_kernels=4)
 
     # Summarize the model
     summary(hybrid_model, (BATCH_SIZE, 1, 28, 28))
