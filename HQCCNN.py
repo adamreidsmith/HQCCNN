@@ -18,9 +18,9 @@ from tqdm import tqdm
 
 
 DATAFILE = "../deepsat_qnn/deepsat4/sat-4-full.mat"  # https://csc.lsu.edu/~saikat/deepsat/
-BATCH_SIZE = 2
+BATCH_SIZE = 32
 LR = 0.001
-EPOCHS = 100
+EPOCHS = 40
 
 # seed = 0
 # torch.manual_seed(seed)
