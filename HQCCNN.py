@@ -18,7 +18,7 @@ from tqdm import tqdm
 
 
 DATAFILE = "../deepsat_qnn/deepsat4/sat-4-full.mat"  # https://csc.lsu.edu/~saikat/deepsat/
-BATCH_SIZE = 2
+BATCH_SIZE = 32
 LR = 0.001
 EPOCHS = 100
 
@@ -250,7 +250,9 @@ def test(model, dataloader, loss_func, epoch=0):
 def main():
     train_loader, test_loader = load_data(subset_directory='data_subsets')
 
-    hybrid_model = HybridModel(input_size=28, downsampled_size=4, quantum_kernels=2)
+    downsampled_size = 3
+    plot_samples(train_loader, downsampled_size)
+    hybrid_model = HybridModel(input_size=28, downsampled_size=downsampled_size, quantum_kernels=2)
 
     # Summarize the model
     summary(hybrid_model, (BATCH_SIZE, 1, 28, 28))
@@ -295,6 +297,27 @@ def main():
     plt.show()
 
     print(train_loss, train_acc, test_loss, test_acc, sep='\n')
+
+
+def plot_samples(dataloader, downsampled_size, n_samples=16, n_wide=4):
+    import random
+
+    n_samples += (n_wide - n_samples % n_wide) % n_wide
+    samples = random.sample(list(dataloader), n_samples)
+
+    downsampling_ks = samples[0][0].shape[-1] // downsampled_size
+    downsampling = AvgPool2d(kernel_size=downsampling_ks, stride=downsampling_ks)
+
+    plt.figure(figsize=(12, 10))
+    with torch.no_grad():
+        for i in range(n_samples):
+            plt.subplot(n_samples // n_wide, n_wide, i + 1)
+            sample = downsampling(samples[i][0])
+            class_label = str(torch.argmax(samples[i][1]).item())
+            plt.imshow(sample[0, 0], cmap='gray')
+            plt.title(f'Class: {class_label}')
+    plt.tight_layout()
+    plt.show()
 
 
 if __name__ == '__main__':

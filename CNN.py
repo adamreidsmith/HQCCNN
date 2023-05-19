@@ -56,7 +56,7 @@ class CNNModel(nn.Module):
         self.conv1 = Conv2d(in_channels=1, out_channels=2, kernel_size=2, padding=1, stride=1)
         self.pool1 = MaxPool2d(kernel_size=2, stride=1)
         self.flatten = Flatten()
-        self.fc1 = Linear(in_features=32, out_features=128)
+        self.fc1 = Linear(in_features=18, out_features=128)
         self.fc2 = Linear(in_features=128, out_features=64)
         self.fc3 = Linear(in_features=64, out_features=4)
         self.relu = ReLU()
@@ -156,7 +156,9 @@ def test(model, dataloader, loss_func, epoch):
 def main():
     train_loader, test_loader = load_data(subset_directory='data_subsets')
 
-    cnn_model = CNNModel(input_size=28, downsampled_size=4)
+    downsampled_size = 3
+    plot_samples(train_loader, downsampled_size)
+    cnn_model = CNNModel(input_size=28, downsampled_size=downsampled_size)
 
     summary(cnn_model, (BATCH_SIZE, 1, 28, 28))
 
@@ -200,6 +202,27 @@ def main():
     plt.show()
 
     print(train_loss, train_acc, test_loss, test_acc, sep='\n')
+
+
+def plot_samples(dataloader, downsampled_size, n_samples=16, n_wide=4):
+    import random
+
+    n_samples += (n_wide - n_samples % n_wide) % n_wide
+    samples = random.sample(list(dataloader), n_samples)
+
+    downsampling_ks = samples[0][0].shape[-1] // downsampled_size
+    downsampling = AvgPool2d(kernel_size=downsampling_ks, stride=downsampling_ks)
+
+    plt.figure(figsize=(12, 10))
+    with torch.no_grad():
+        for i in range(n_samples):
+            plt.subplot(n_samples // n_wide, n_wide, i + 1)
+            sample = downsampling(samples[i][0])
+            class_label = str(torch.argmax(samples[i][1]).item())
+            plt.imshow(sample[0, 0], cmap='gray')
+            plt.title(f'Class: {class_label}')
+    plt.tight_layout()
+    plt.show()
 
 
 if __name__ == '__main__':
