@@ -21,8 +21,8 @@ BATCH_SIZE = 32
 LR = 0.001
 EPOCHS = 100
 
-seed = 0
-torch.manual_seed(seed)
+# seed = 0
+# torch.manual_seed(seed)
 
 
 class Data(Dataset):
@@ -56,7 +56,7 @@ class CNNModel(nn.Module):
         self.conv1 = Conv2d(in_channels=1, out_channels=2, kernel_size=2, padding=1, stride=1)
         self.pool1 = MaxPool2d(kernel_size=2, stride=1)
         self.flatten = Flatten()
-        self.fc1 = Linear(in_features=18, out_features=128)
+        self.fc1 = Linear(in_features=32, out_features=128)
         self.fc2 = Linear(in_features=128, out_features=64)
         self.fc3 = Linear(in_features=64, out_features=4)
         self.relu = ReLU()
@@ -156,7 +156,7 @@ def test(model, dataloader, loss_func, epoch):
 def main():
     train_loader, test_loader = load_data(subset_directory='data_subsets')
 
-    downsampled_size = 3
+    downsampled_size = 4
     plot_samples(train_loader, downsampled_size)
     cnn_model = CNNModel(input_size=28, downsampled_size=downsampled_size)
 

@@ -6,5 +6,6 @@ __pycache__
 !HQCCNN.py
 !HQCCNN_qiskit.py
 !results.py
+!plot_results.py
 !requirements.txt
 !README.md
