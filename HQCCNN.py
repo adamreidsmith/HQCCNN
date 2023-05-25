@@ -252,7 +252,7 @@ def main():
 
     downsampled_size = 4
     # plot_samples(train_loader, downsampled_size)
-    hybrid_model = HybridModel(input_size=28, downsampled_size=downsampled_size, quantum_kernels=4)
+    hybrid_model = HybridModel(input_size=28, downsampled_size=downsampled_size, quantum_kernels=1)
 
     # Summarize the model
     summary(hybrid_model, (BATCH_SIZE, 1, 28, 28))
