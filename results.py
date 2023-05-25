@@ -2224,3 +2224,5 @@ q_bs32_ds4_ep100_k4 = [
         0.7247983870967742,
     ],
 ]
+
+all_results = [q_bs32_ds3_ep100, q_bs32_ds4_ep100, q_bs32_ds4_ep100_k4, q_bs32_ds4_ep40, c_bs32_ds3_ep100, c_bs32_ds4_ep100]
