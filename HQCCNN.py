@@ -1,3 +1,4 @@
+import math
 from math import pi
 import pickle
 import os
@@ -9,6 +10,7 @@ from torch.nn import AvgPool2d, Flatten, Linear, ReLU, CrossEntropyLoss, Softmax
 from torch.utils.data import Dataset, DataLoader
 from torch.optim import Adam
 import torchquantum as tq
+import torchquantum.functional as tqf
 from torchinfo import summary
 
 from scipy.io import loadmat
@@ -18,12 +20,15 @@ from tqdm import tqdm
 
 
 DATAFILE = "../deepsat_qnn/deepsat4/sat-4-full.mat"  # https://csc.lsu.edu/~saikat/deepsat/
-BATCH_SIZE = 32
+BATCH_SIZE = 16
 LR = 0.001
-EPOCHS = 100
+EPOCHS = 40
 
-# seed = 0
-# torch.manual_seed(seed)
+DOWNSAMPLED_SIZE = 3
+N_QUANTUM_KERNELS = 2
+
+seed = 0
+torch.manual_seed(seed)
 
 
 class Data(Dataset):
@@ -127,10 +132,72 @@ class QuantumModel(tq.QuantumModule):
             # Here we disregard the last four qubits due to the pooling operation
             quantum_conv_results.append(self.measure(self.q_device)[:, :-4])
 
-            # # Reset the states of the quantum device to |0>
+            # Reset the states of the quantum device to |0>
             self.q_device.reset_states(bsz=self.batch_size)
 
         return torch.cat(quantum_conv_results, dim=1)
+
+
+class QuantumDropout(tq.QuantumModule):
+    def __init__(self, p: float, input_shape: tuple):
+        super().__init__()
+
+        self.p = p  # Proportion of the input vector to set to zero
+        self.batch_size = input_shape[0]
+        self.input_length = math.prod(input_shape[1:])
+
+        # Number of wires in the circuit is the minimal m >= 1 s.t. 2**m >= self.input_length
+        self.n_wires = math.ceil(math.log2(self.input_length)) or 1
+
+    def forward(self, x):
+        # Define a quantum device to run the encoding
+        qdev = tq.QuantumDevice(n_wires=self.n_wires, bsz=self.batch_size)
+
+        # Flatten x if necessary
+        shape = x.shape
+        if len(shape) > 2:
+            x = x.flatten(start_dim=1)
+
+        # Pass the input tensor through the quantum circuit defined by the encoder gates
+        # Quantum Circuit:
+        # -- H -- Ry(x_1) -- H -- Ry(x_m+1) -- H -- ...
+        # -- H -- Ry(x_2) -- H -- Ry(x_m+2) -- H -- ...
+        # ...
+        # -- H -- Ry(x_m) -- H -- Ry(x_2*m) -- H -- ...
+        # where m is minimal s.t. 2**m >= # of inputs.
+
+        # First initialize each qubit in the |+> state
+        for i in range(self.n_wires):
+            tqf.h(qdev, wires=i)
+
+        # Then apply the rotation gates and remaining hadamards
+        for i in range(self.input_length):
+            tqf.ry(qdev, wires=i % self.n_wires, params=x[:, i])
+            tqf.h(qdev, wires=i % self.n_wires)
+
+        # Get the elements of the statevector corresponding to the input tensor
+        statevector = qdev.get_states_1d()[:, : self.input_length]
+
+        # We just want the magnitude
+        statevector = torch.real(statevector * statevector.conj())
+
+        # Number of elements to set to zero in each input of the batch
+        n_zero = round(self.p * self.input_length)
+
+        # Get indices of the largest elements of the statevector
+        topk = torch.topk(statevector, n_zero, dim=1).indices
+
+        # Create a mask and zero the corresponding input values
+        mask = torch.ones_like(x)
+        for i in range(self.batch_size):
+            mask[i, topk[i]] = 0.0
+        x = x * mask  # Cannot use *= as this operates in-place, which causes errors for torch.autograg
+
+        # Reshape x if necessary
+        if len(shape) > 2:
+            x = x.reshape(shape)
+
+        return x
 
 
 class HybridModel(nn.Module):
@@ -149,6 +216,7 @@ class HybridModel(nn.Module):
 
         # Feed the quantum output into linear layers
         self.fc1 = Linear(in_features=quantum_kernels * (downsampled_size**2 - 4), out_features=128)
+        self.quantum_dropout = QuantumDropout(0.4, (BATCH_SIZE, 128))
         self.fc2 = Linear(in_features=128, out_features=64)
         self.fc3 = Linear(in_features=64, out_features=4)
 
@@ -160,6 +228,7 @@ class HybridModel(nn.Module):
         x = self.flatten(x)
         x = self.quantum_convolution(x)
         x = self.relu(self.fc1(x))
+        # x = self.quantum_dropout(x)
         x = self.relu(self.fc2(x))
         return self.fc3(x)  # No need to apply softmax here as it is applied by the loss function
 
@@ -247,12 +316,11 @@ def test(model, dataloader, loss_func, epoch=0):
     return test_loss, test_accuracy
 
 
-def main():
+def main(plot=True):
     train_loader, test_loader = load_data(subset_directory='data_subsets')
 
-    downsampled_size = 4
-    # plot_samples(train_loader, downsampled_size)
-    hybrid_model = HybridModel(input_size=28, downsampled_size=downsampled_size, quantum_kernels=1)
+    # plot_samples(train_loader, DOWNSAMPLED_SIZE)
+    hybrid_model = HybridModel(input_size=28, downsampled_size=DOWNSAMPLED_SIZE, quantum_kernels=N_QUANTUM_KERNELS)
 
     # Summarize the model
     summary(hybrid_model, (BATCH_SIZE, 1, 28, 28))
@@ -264,7 +332,7 @@ def main():
     try:
         train_loss, test_loss = [], []
         train_acc, test_acc = [], []
-        for i in range(EPOCHS):
+        for i in tqdm(range(EPOCHS)):
             loss, acc = train(hybrid_model, train_loader, loss_func, optimizer, i)
             train_loss.append(stats.mean(loss))
             train_acc.append(stats.mean(acc))
@@ -284,6 +352,35 @@ def main():
             raise KeyboardInterrupt(e)
 
     # Plot the results
+    if plot:
+        plt.figure()
+        sns.lineplot(train_loss, label='train')
+        sns.lineplot(test_loss, label='test')
+        plt.title('Loss')
+
+        plt.figure()
+        sns.lineplot(train_acc, label='train')
+        sns.lineplot(test_acc, label='test')
+        plt.title('Accuracy')
+
+        plt.show()
+
+    # print(train_loss, train_acc, test_loss, test_acc, sep='\n')
+    return train_loss, train_acc, test_loss, test_acc
+
+
+def run_many(n=4):
+    mean_results = torch.zeros((4, EPOCHS), requires_grad=False)
+    for i in range(n):
+        print(f'Beginning run {i+1}/{n}')
+        mean_results += torch.Tensor(main(plot=False))
+    mean_results /= n
+
+    print('Mean results:')
+    for result in mean_results:
+        print(list(result))
+
+    train_loss, train_acc, test_loss, test_acc = mean_results
     plt.figure()
     sns.lineplot(train_loss, label='train')
     sns.lineplot(test_loss, label='test')
@@ -295,8 +392,6 @@ def main():
     plt.title('Accuracy')
 
     plt.show()
-
-    print(train_loss, train_acc, test_loss, test_acc, sep='\n')
 
 
 def plot_samples(dataloader, downsampled_size, n_samples=16, n_wide=4):
@@ -321,4 +416,4 @@ def plot_samples(dataloader, downsampled_size, n_samples=16, n_wide=4):
 
 
 if __name__ == '__main__':
-    main()
+    run_many(4)

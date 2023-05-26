@@ -5,7 +5,7 @@ import statistics as stats
 
 import torch
 from torch import nn
-from torch.nn import AvgPool2d, Flatten, Linear, ReLU, CrossEntropyLoss, Softmax, Conv2d, MaxPool2d
+from torch.nn import AvgPool2d, Flatten, Linear, ReLU, CrossEntropyLoss, Softmax, Conv2d, MaxPool2d, Dropout
 from torch.utils.data import Dataset, DataLoader
 from torch.optim import Adam
 from torchinfo import summary
@@ -17,9 +17,11 @@ from tqdm import tqdm
 
 
 DATAFILE = "../deepsat_qnn/deepsat4/sat-4-full.mat"  # https://csc.lsu.edu/~saikat/deepsat/
-BATCH_SIZE = 32
+BATCH_SIZE = 16
 LR = 0.001
-EPOCHS = 100
+EPOCHS = 40
+
+DOWNSAMPLED_SIZE = 3
 
 # seed = 0
 # torch.manual_seed(seed)
@@ -61,11 +63,14 @@ class CNNModel(nn.Module):
         self.fc3 = Linear(in_features=64, out_features=4)
         self.relu = ReLU()
 
+        self.dropout = Dropout(0.4)
+
     def forward(self, x):
         x = self.downsampling(x)
         x = self.relu(self.pool1(self.conv1(x)))
         x = self.flatten(x)
         x = self.relu(self.fc1(x))
+        x = self.dropout(x)
         x = self.relu(self.fc2(x))
         return self.fc3(x)  # No need to apply softmax here as it is applied by the loss function
 
@@ -153,12 +158,12 @@ def test(model, dataloader, loss_func, epoch):
     return test_loss, test_accuracy
 
 
-def main():
+def main(plot=True):
     train_loader, test_loader = load_data(subset_directory='data_subsets')
 
-    downsampled_size = 4
-    plot_samples(train_loader, downsampled_size)
-    cnn_model = CNNModel(input_size=28, downsampled_size=downsampled_size)
+    DOWNSAMPLED_SIZE = 4
+    # plot_samples(train_loader, downsampled_size)
+    cnn_model = CNNModel(input_size=28, downsampled_size=DOWNSAMPLED_SIZE)
 
     summary(cnn_model, (BATCH_SIZE, 1, 28, 28))
 
@@ -169,7 +174,7 @@ def main():
     # try:
     train_loss, test_loss = [], []
     train_acc, test_acc = [], []
-    for i in range(EPOCHS):
+    for i in tqdm(range(EPOCHS)):
         loss, acc = train(cnn_model, train_loader, loss_func, optimizer, i)
         train_loss.append(stats.mean(loss))
         train_acc.append(stats.mean(acc))
@@ -188,7 +193,36 @@ def main():
     #     if not test_acc:
     #         raise KeyboardInterrupt(e)
 
-    # Plot the results
+    if plot:
+        # Plot the results
+        plt.figure()
+        sns.lineplot(train_loss, label='train')
+        sns.lineplot(test_loss, label='test')
+        plt.title('Loss')
+
+        plt.figure()
+        sns.lineplot(train_acc, label='train')
+        sns.lineplot(test_acc, label='test')
+        plt.title('Accuracy')
+
+        plt.show()
+
+    # print(train_loss, train_acc, test_loss, test_acc, sep='\n')
+    return train_loss, train_acc, test_loss, test_acc
+
+
+def run_many(n=4):
+    mean_results = torch.zeros((4, EPOCHS), requires_grad=False)
+    for i in range(n):
+        print(f'Beginning run {i+1}/{n}')
+        mean_results += torch.Tensor(main(plot=False))
+    mean_results /= n
+
+    print('Mean results:')
+    for result in mean_results:
+        print(list(result))
+
+    train_loss, train_acc, test_loss, test_acc = mean_results
     plt.figure()
     sns.lineplot(train_loss, label='train')
     sns.lineplot(test_loss, label='test')
@@ -200,8 +234,6 @@ def main():
     plt.title('Accuracy')
 
     plt.show()
-
-    print(train_loss, train_acc, test_loss, test_acc, sep='\n')
 
 
 def plot_samples(dataloader, downsampled_size, n_samples=16, n_wide=4):
@@ -226,4 +258,5 @@ def plot_samples(dataloader, downsampled_size, n_samples=16, n_wide=4):
 
 
 if __name__ == '__main__':
-    main()
+    # main()
+    run_many(5)

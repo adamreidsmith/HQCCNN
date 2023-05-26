@@ -29,6 +29,9 @@ BATCH_SIZE = 32
 LR = 0.001
 EPOCHS = 100
 
+DOWNSAMPLED_SIZE = 3
+N_QUANTUM_KERNELS = 2
+
 # seed = 0
 # torch.manual_seed(seed)
 
@@ -221,9 +224,8 @@ def test(model, dataloader, loss_func, epoch=0):
 def main():
     train_loader, test_loader = load_data(subset_directory='data_subsets')
 
-    downsampled_size = 3
-    plot_samples(train_loader, downsampled_size)
-    hybrid_model = HybridModel(input_size=28, downsampled_size=downsampled_size, n_quantum_kernels=2)
+    # plot_samples(train_loader, DOWNSAMPLED_SIZE)
+    hybrid_model = HybridModel(input_size=28, downsampled_size=DOWNSAMPLED_SIZE, n_quantum_kernels=N_QUANTUM_KERNELS)
 
     # Summarize the model
     summary(hybrid_model, (BATCH_SIZE, 1, 28, 28))
