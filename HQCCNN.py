@@ -228,7 +228,7 @@ class HybridModel(nn.Module):
         x = self.flatten(x)
         x = self.quantum_convolution(x)
         x = self.relu(self.fc1(x))
-        # x = self.quantum_dropout(x)
+        x = self.quantum_dropout(x)
         x = self.relu(self.fc2(x))
         return self.fc3(x)  # No need to apply softmax here as it is applied by the loss function
 
@@ -378,7 +378,7 @@ def run_many(n=4):
 
     print('Mean results:')
     for result in mean_results:
-        print(list(result))
+        print(result.tolist())
 
     train_loss, train_acc, test_loss, test_acc = mean_results
     plt.figure()

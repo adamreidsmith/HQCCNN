@@ -220,7 +220,7 @@ def run_many(n=4):
 
     print('Mean results:')
     for result in mean_results:
-        print(list(result))
+        print(list(result.tolist())
 
     train_loss, train_acc, test_loss, test_acc = mean_results
     plt.figure()
