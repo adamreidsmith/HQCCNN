@@ -24,7 +24,7 @@ BATCH_SIZE = 16
 LR = 0.001
 EPOCHS = 40
 
-DOWNSAMPLED_SIZE = 3
+DOWNSAMPLED_SIZE = 4
 N_QUANTUM_KERNELS = 2
 
 seed = 0
@@ -38,7 +38,7 @@ class Data(Dataset):
         # Take the channel-wise mean of the data to reduce the dimensionality
         self.x_data = self.x_data.mean(dim=1, keepdim=True)
 
-        # # Standardize the data on [0, pi]
+        # Standardize the data on [0, pi]
         mn, mx = self.x_data.min(), self.x_data.max()
         self.x_data = pi * (self.x_data - mn) / (mx - mn)
 
@@ -191,7 +191,7 @@ class QuantumDropout(tq.QuantumModule):
         mask = torch.ones_like(x)
         for i in range(self.batch_size):
             mask[i, topk[i]] = 0.0
-        x = x * mask  # Cannot use *= as this operates in-place, which causes errors for torch.autograg
+        x = x * mask  # Cannot use *= as this operates in-place, which causes issues for torch.autograd
 
         # Reshape x if necessary
         if len(shape) > 2:
@@ -317,7 +317,7 @@ def test(model, dataloader, loss_func, epoch=0):
 
 
 def main(plot=True):
-    train_loader, test_loader = load_data(subset_directory='data_subsets')
+    train_loader, test_loader = load_data(subset_directory='../data_subsets')
 
     # plot_samples(train_loader, DOWNSAMPLED_SIZE)
     hybrid_model = HybridModel(input_size=28, downsampled_size=DOWNSAMPLED_SIZE, quantum_kernels=N_QUANTUM_KERNELS)
@@ -416,4 +416,4 @@ def plot_samples(dataloader, downsampled_size, n_samples=16, n_wide=4):
 
 
 if __name__ == '__main__':
-    run_many(4)
+    main()

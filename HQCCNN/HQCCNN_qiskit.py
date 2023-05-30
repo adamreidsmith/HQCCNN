@@ -222,7 +222,7 @@ def test(model, dataloader, loss_func, epoch=0):
 
 
 def main():
-    train_loader, test_loader = load_data(subset_directory='data_subsets')
+    train_loader, test_loader = load_data(subset_directory='../data_subsets')
 
     # plot_samples(train_loader, DOWNSAMPLED_SIZE)
     hybrid_model = HybridModel(input_size=28, downsampled_size=DOWNSAMPLED_SIZE, n_quantum_kernels=N_QUANTUM_KERNELS)

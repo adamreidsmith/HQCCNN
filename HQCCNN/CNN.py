@@ -34,7 +34,7 @@ class Data(Dataset):
         # Take the channel-wise mean of the data to reduce the dimensionality
         self.x_data = self.x_data.mean(dim=1, keepdim=True)
 
-        # # Standardize the data on [0, pi]
+        # Standardize the data on [0, pi]
         mn, mx = self.x_data.min(), self.x_data.max()
         self.x_data = pi * (self.x_data - mn) / (mx - mn)
 
@@ -159,7 +159,7 @@ def test(model, dataloader, loss_func, epoch):
 
 
 def main(plot=True):
-    train_loader, test_loader = load_data(subset_directory='data_subsets')
+    train_loader, test_loader = load_data(subset_directory='../data_subsets')
 
     DOWNSAMPLED_SIZE = 4
     # plot_samples(train_loader, downsampled_size)
