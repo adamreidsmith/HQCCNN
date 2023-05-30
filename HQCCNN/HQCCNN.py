@@ -19,7 +19,7 @@ import seaborn as sns
 from tqdm import tqdm
 
 
-DATAFILE = "../deepsat_qnn/deepsat4/sat-4-full.mat"  # https://csc.lsu.edu/~saikat/deepsat/
+DATAFILE = "../../deepsat_qnn/deepsat4/sat-4-full.mat"  # https://csc.lsu.edu/~saikat/deepsat/
 BATCH_SIZE = 16
 LR = 0.001
 EPOCHS = 40

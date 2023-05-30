@@ -1,12 +1,2 @@
-*
 __pycache__
-
-!.gitignore
-!CNN.py
-!HQCCNN.py
-!HQCCNN_qiskit.py
-!results.py
-!plot_results.py
-!requirements.txt
-!README.md
-!*.png
+data_subsets
