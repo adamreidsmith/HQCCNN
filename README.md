@@ -6,12 +6,12 @@ As the images from this dataset contain 4 channels instead of the single channel
 
 The HQCCNN uses 2 quantum convolutional kernels, each with an associated pooling operation.  It was trained for 100 epochs with a batch size of 32 and learning rate of 0.001.  A classical convolutional network with an equivalent architecture utilizing classical convolution layers was also created and trained under the same condition.  These models were both trained and evaluated using input image size of (4, 4) and (3, 3).  The results of training are shown below.
 
-![results](./results_2kernels.png)
+![results](./HQCCNN/results_2kernels.png)
 
 Despite the significant downsampling and size reduction of the dataset, we obtain moderate classification accuracy in both the classical and quantum networks.  However, contradictory to the original paper, the quantum network consistently underperforms compared to its classical equivalent.
 
 A quantum model using 4 quantum convolutional kernels was also created and compared to the previous.  The results are shown below.
 
-![results](./results_4kernels.png)
+![results](./HQCCNN/results_4kernels.png)
 
 As expected, we see a slight improvement in the classification ability of the larger model. However, training time was significantly increased for the 4 kernel network.
