@@ -18,10 +18,10 @@ from tqdm import tqdm
 
 DATAFILE = "../../deepsat_qnn/deepsat4/sat-4-full.mat"  # https://csc.lsu.edu/~saikat/deepsat/
 BATCH_SIZE = 32
-LR = 0.001
+LR = 0.0003
 EPOCHS = 100
 
-DOWNSAMPLED_SIZE = 3
+DOWNSAMPLED_SIZE = 4
 
 # seed = 0
 # torch.manual_seed(seed)
@@ -57,8 +57,8 @@ class CNNModel(nn.Module):
         # Downsample the image from [BS, 1, 28, 28] to [BS, 1, downsampled_size, downsampled_size]
         # Note that these layers must be altered if downsampled_size != 4 #######################################
         assert downsampled_size == 4
-        self.downsample_conv1 = Conv2d(in_channels=1, out_channels=8, kernel_size=6, stride=3, padding=1)
-        self.downsample_conv2 = Conv2d(in_channels=8, out_channels=1, kernel_size=3, stride=2)
+        self.downsample_conv1 = Conv2d(in_channels=1, out_channels=1, kernel_size=6, stride=3, padding=1)
+        self.downsample_conv2 = Conv2d(in_channels=1, out_channels=1, kernel_size=3, stride=2)
 
         self.conv1 = Conv2d(in_channels=1, out_channels=2, kernel_size=2, padding=1, stride=1)
         self.pool1 = MaxPool2d(kernel_size=2, stride=1)
@@ -76,7 +76,7 @@ class CNNModel(nn.Module):
         x = self.relu(self.pool1(self.conv1(x)))
         x = self.flatten(x)
         x = self.relu(self.fc1(x))
-        # x = self.dropout(x)
+        x = self.dropout(x)
         x = self.relu(self.fc2(x))
         return self.fc3(x)  # No need to apply softmax here as it is applied by the loss function
 
@@ -167,7 +167,6 @@ def test(model, dataloader, loss_func, epoch):
 def main(plot=True):
     train_loader, test_loader = load_data(subset_directory='../data_subsets')
 
-    DOWNSAMPLED_SIZE = 4
     # plot_samples(train_loader, downsampled_size)
     cnn_model = CNNModel(input_size=28, downsampled_size=DOWNSAMPLED_SIZE)
 
@@ -180,7 +179,7 @@ def main(plot=True):
     # try:
     train_loss, test_loss = [], []
     train_acc, test_acc = [], []
-    for i in tqdm(range(EPOCHS)):
+    for i in tqdm(range(EPOCHS), desc='Overall progress'):
         loss, acc = train(cnn_model, train_loader, loss_func, optimizer, i)
         train_loss.append(stats.mean(loss))
         train_acc.append(stats.mean(acc))

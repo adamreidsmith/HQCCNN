@@ -139,7 +139,7 @@ class QuantumModel(tq.QuantumModule):
 
 
 class QuantumDropout(tq.QuantumModule):
-    def __init__(self, p: float, input_shape: tuple):
+    def __init__(self, p: float, input_shape: tuple[int]):
         super().__init__()
 
         self.p = p  # Proportion of the input vector to set to zero

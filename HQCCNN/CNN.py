@@ -17,11 +17,11 @@ from tqdm import tqdm
 
 
 DATAFILE = "../../deepsat_qnn/deepsat4/sat-4-full.mat"  # https://csc.lsu.edu/~saikat/deepsat/
-BATCH_SIZE = 16
-LR = 0.001
-EPOCHS = 40
+BATCH_SIZE = 32
+LR = 0.0003
+EPOCHS = 100
 
-DOWNSAMPLED_SIZE = 3
+DOWNSAMPLED_SIZE = 4
 
 # seed = 0
 # torch.manual_seed(seed)
@@ -161,7 +161,6 @@ def test(model, dataloader, loss_func, epoch):
 def main(plot=True):
     train_loader, test_loader = load_data(subset_directory='../data_subsets')
 
-    DOWNSAMPLED_SIZE = 4
     # plot_samples(train_loader, downsampled_size)
     cnn_model = CNNModel(input_size=28, downsampled_size=DOWNSAMPLED_SIZE)
 
@@ -174,7 +173,7 @@ def main(plot=True):
     # try:
     train_loss, test_loss = [], []
     train_acc, test_acc = [], []
-    for i in tqdm(range(EPOCHS)):
+    for i in tqdm(range(EPOCHS), desc='Overall progress'):
         loss, acc = train(cnn_model, train_loader, loss_func, optimizer, i)
         train_loss.append(stats.mean(loss))
         train_acc.append(stats.mean(acc))
@@ -258,5 +257,5 @@ def plot_samples(dataloader, downsampled_size, n_samples=16, n_wide=4):
 
 
 if __name__ == '__main__':
-    # main()
-    run_many(5)
+    main()
+    # run_many(5)
