@@ -19,7 +19,7 @@ import seaborn as sns
 from tqdm import tqdm
 
 
-DATAFILE = "../../deepsat_qnn/deepsat4/sat-4-full.mat"  # https://csc.lsu.edu/~saikat/deepsat/
+DATAFILE = "./sat-4-full.mat"  # https://csc.lsu.edu/~saikat/deepsat/
 BATCH_SIZE = 16
 LR = 0.001
 EPOCHS = 40
@@ -27,7 +27,7 @@ EPOCHS = 40
 DOWNSAMPLED_SIZE = 4
 N_QUANTUM_KERNELS = 2
 
-seed = 0
+seed = 9876543210
 torch.manual_seed(seed)
 
 
@@ -234,6 +234,8 @@ class HybridModel(nn.Module):
 
 
 def load_data(ntrain=9000, ntest=1000, subset_directory='', write_subset_files=True):
+    if subset_directory and not os.path.exists(subset_directory):
+        os.mkdir(subset_directory)
     subset_files = [f'xtrain{ntrain}.pkl', f'xtest{ntest}.pkl', f'ytrain{ntrain}.pkl', f'ytest{ntest}.pkl']
     subset_files = [os.path.join(subset_directory, file) for file in subset_files]
 
@@ -317,7 +319,7 @@ def test(model, dataloader, loss_func, epoch=0):
 
 
 def main(plot=True):
-    train_loader, test_loader = load_data(subset_directory='../data_subsets')
+    train_loader, test_loader = load_data(subset_directory='./data_subsets')
 
     # plot_samples(train_loader, DOWNSAMPLED_SIZE)
     hybrid_model = HybridModel(input_size=28, downsampled_size=DOWNSAMPLED_SIZE, quantum_kernels=N_QUANTUM_KERNELS)
